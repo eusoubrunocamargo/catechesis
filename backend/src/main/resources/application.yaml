@@ -1,3 +1,36 @@
 spring:
   application:
-    name: backend
+    name: catechesis-backend
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/catechesis_dev
+    username: catechesis_dev
+    password: dev
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+
+logging:
+  level:
+    com.catechesis: DEBUG
