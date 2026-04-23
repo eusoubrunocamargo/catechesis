@@ -31,3 +31,12 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Environment files (gitignored; each machine maintains its own)
+.env
+.env.dev
+.env.local
+.env.*.local
+
+# Keep the example template committed
+!.env.dev.example

@@ -3,9 +3,9 @@ spring:
     name: catechesis-backend
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/catechesis_dev
-    username: catechesis_dev
-    password: dev
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/catechesis_dev}
+    username: ${DATABASE_USER:catechesis_dev}
+    password: ${DATABASE_PASSWORD:dev}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -34,3 +34,7 @@ management:
 logging:
   level:
     com.catechesis: DEBUG
+
+app:
+  auth:
+    mode: ${APP_AUTH_MODE:dev}

@@ -1,0 +1,21 @@
+﻿spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/catechesis_test
+    username: catechesis_test
+    password: test
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+app:
+  auth:
+    mode: dev
+
+logging:
+  level:
+    com.catechesis: INFO
