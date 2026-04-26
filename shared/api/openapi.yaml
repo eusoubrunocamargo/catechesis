@@ -1,0 +1,78 @@
+openapi: 3.1.0
+info:
+  title: Catechesis Backend API
+  description: |
+    REST API for the Organized Catechesis system. Sprint 1 covers
+    administrative endpoints (church and catechist provisioning) and
+    class management for Lead Catechists.
+  version: 0.1.0
+
+servers:
+  - url: http://localhost:8080
+    description: Local dev
+
+tags:
+  - name: Admin
+    description: Super-Admin operations — bootstrap parishes and Leads.
+
+paths:
+  /admin/churches:
+    post:
+      tags: [Admin]
+      summary: Create a new Church (parish)
+      description: |
+        Bootstraps a new tenant. Only Super-Admins may invoke this
+        endpoint. Returns the created Church.
+      operationId: createChurch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateChurchRequest'
+      responses:
+        '201':
+          description: Church created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChurchResponse'
+        '400':
+          description: Validation error
+        '403':
+          description: Authenticated user is not a Super-Admin
+
+components:
+  schemas:
+    CreateChurchRequest:
+      type: object
+      required: [displayName, timezone]
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: "Paróquia Nossa Senhora de Fátima"
+        timezone:
+          type: string
+          minLength: 1
+          maxLength: 64
+          example: "America/Sao_Paulo"
+
+    ChurchResponse:
+      type: object
+      required: [id, displayName, timezone, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+        timezone:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
