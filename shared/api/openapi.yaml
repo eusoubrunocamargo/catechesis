@@ -41,6 +41,44 @@ paths:
           description: Validation error
         '403':
           description: Authenticated user is not a Super-Admin
+  /admin/churches/{churchId}/catechists:
+    post:
+      tags: [Admin]
+      summary: Create the first Lead Catechist for a Church
+      description: |
+        Bootstraps the first Lead for a given church. Only Super-Admins
+        may invoke this endpoint. The created catechist always has role
+        = LEAD. Attempting to create a second active Lead returns 409.
+      operationId: createFirstLead
+      parameters:
+        - name: churchId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLeadRequest'
+      responses:
+        '201':
+          description: Catechist created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatechistResponse'
+        '400':
+          description: Validation error
+        '403':
+          description: Authenticated user is not a Super-Admin
+        '404':
+          description: Church not found
+        '409':
+          description: Church already has an active Lead
+
 
 components:
   schemas:
@@ -70,6 +108,48 @@ components:
           type: string
         timezone:
           type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    
+    CreateLeadRequest:
+      type: object
+      required: [email, name]
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 3
+          maxLength: 200
+          example: "marina@parish.org"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: "Marina Silva"
+
+    CatechistResponse:
+      type: object
+      required: [id, churchId, email, name, role, active, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        churchId:
+          type: string
+          format: uuid
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [LEAD, CATECHIST]
+        active:
+          type: boolean
         createdAt:
           type: string
           format: date-time
