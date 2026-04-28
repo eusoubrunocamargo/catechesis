@@ -7,9 +7,8 @@
 > sprint and kept concise — long-form detail belongs in ADRs and sprint
 > reports, which this document links to.
 
-- **Last updated:** 2026-04-17 (end of Sprint 0 — planning)
-- **Active sprint:** Sprint 1 (not started)
-- **Repo:** _url to be added on first push_
+- **Last updated:** 2026-05-01 (end of Sprint 1)
+- **Active sprint:** Sprint 2 (not started)
 
 ---
 
@@ -65,8 +64,29 @@ channel; this system is the logistics backbone for recurring events.
 
 _What the system can actually do right now. Updated at sprint end._
 
-- **Nothing yet** — pre-implementation phase. Design and documentation
-  complete through Sprint 0.
+What the system can actually do as of the latest commit:
+
+- **Schema:** Church, SuperAdmin, Catechist, Klass, and
+  CatechistAssignment tables, all with UUID PKs and tenant-integrity
+  composite FKs (Flyway V1–V5).
+- **Authentication (dev mode):** Header-based identity via
+  `X-Dev-Super-Admin-Id` and `X-Dev-Catechist-Id`. The filter
+  populates both our custom `SecurityContext` / `TenantContext`
+  and Spring Security's `SecurityContextHolder`.
+- **Endpoints:**
+  - `POST /admin/churches` — SuperAdmin creates a Church
+  - `POST /admin/churches/{id}/catechists` — SuperAdmin bootstraps
+    the first Lead for a Church
+  - `POST /classes` — Lead creates a class in their own church
+- **Tenant isolation:** Enforced at three layers — composite FKs at
+  the DB, `TenantContext.requireChurchId()` in services, and
+  `@PreAuthorize` role gates at controllers. 6 cross-tenant tests
+  prove the model holds.
+- **Test infrastructure:** 20 integration tests against a dedicated
+  `catechesis_test` database, all transactional with rollback.
+- **Local dev parity:** Both Windows (corporate proxy) and macOS
+  (home, no proxy) environments boot the same skeleton from a fresh
+  clone via `.env.dev` + Maven Wrapper.
 
 ## 6. Known limitations
 
@@ -84,6 +104,9 @@ exclusions, not just "not yet."_
 - Portuguese (pt-BR) only; no i18n in MVP
 - Single-parish pilot first; multi-parish onboarding is manual via
   Super-Admin
+- The `@PreAuthorize` integration depends on Spring Security's
+  `SecurityContextHolder`, populated alongside our custom contexts;
+  removing the dual write would break role-based authorization.
 
 ## 7. Deferred items
 
@@ -103,6 +126,14 @@ revisited periodically as real usage data arrives._
 - **Announcement board / resource library** — stays in WhatsApp for
   MVP. Revisit in v2 planning.
 - **Attendance history / analytics** — only per-event headcount in MVP.
+- **Standardized error response format.** Sprint 1 used
+  `ResponseStatusException` ad-hoc. Sprint 4 will introduce
+  `@ControllerAdvice` + a domain-exception hierarchy.
+- **Tenant-scoped repository pattern.** Currently every repository's
+  `findById` is global; tenant safety lives at the layer above.
+  ADR-0002 follow-up planned for Sprint 4.
+- **`GET /admin/churches` for SuperAdmin enumeration.** Open question
+  deferred from S01-09 — likely Sprint 2.
 
 ## 8. Development principles
 
@@ -146,17 +177,21 @@ catechesis/
 
 ## 10. Current sprint status
 
-- **Active sprint:** Sprint 1 (not yet started)
-- **Sprint 1 goal:** Running skeleton with tenant/access layer, dev auth,
-  super-admin can create a Church and a Lead Catechist
-- **Sprint 1 backlog:** `docs/sprints/sprint-01-backlog.md` — to be
-  created on sprint kickoff
+- **Active sprint:** Sprint 2 (planning)
+- **Sprint 2 goal:** A Lead Catechist can generate a per-class
+  registration link, a parent can submit a registration via that link,
+  and the catechist can approve or reject it, promoting it to an active Child. Introduces the Roster layer (PendingRegistration, Child, ChildSafetyInfo) and the first public, unauthenticated endpoint.
+- **Sprint 2 backlog:** `docs/sprints/sprint-02-backlog.md` — to be
+  drafted at sprint kickoff.
 
 ### Sprint history
 
 _Append one line per completed sprint, newest on top._
 
-- _(none yet — Sprint 1 will be the first execution sprint)_
+- **2026-04-18 → 2026-05-01 — Sprint 1**: Tenant/access foundation. 5
+  schema migrations, 5 entities, security seam, 3 endpoints, 20 tests
+  including cross-tenant isolation. All 13 backlog items closed.
+
 
 ## 11. How to use this document
 
