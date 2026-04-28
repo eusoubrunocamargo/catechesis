@@ -78,7 +78,32 @@ paths:
           description: Church not found
         '409':
           description: Church already has an active Lead
-
+  /classes:
+    post:
+      tags: [Classes]
+      summary: Create a class in the Lead's own church
+      description: |
+        The authenticated Lead's church is used as the tenant for the
+        new class. The request body has no churchId field — tenant
+        identity is derived from authentication, not user input.
+      operationId: createKlass
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateKlassRequest'
+      responses:
+        '201':
+          description: Class created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KlassResponse'
+        '400':
+          description: Validation error
+        '403':
+          description: Authenticated user is not a Lead
 
 components:
   schemas:
@@ -148,6 +173,37 @@ components:
         role:
           type: string
           enum: [LEAD, CATECHIST]
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateKlassRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: "Sementinha III A"
+
+    KlassResponse:
+      type: object
+      required: [id, churchId, name, active, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        churchId:
+          type: string
+          format: uuid
+        name:
+          type: string
         active:
           type: boolean
         createdAt:
