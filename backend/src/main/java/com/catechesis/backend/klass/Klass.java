@@ -43,13 +43,23 @@ public class Klass implements TenantScoped {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    @Column(name = "public_slug", nullable = false, unique = true, length = 10)
+    private String publicSlug;
+
     /** Required by JPA. */
     protected Klass() {
     }
 
-    public Klass(UUID churchId, String name) {
+    public Klass(
+            UUID id,
+            UUID churchId,
+            String name,
+            String publicSlug
+            ) {
+        this.id = id;
         this.churchId = churchId;
         this.name = name;
+        this.publicSlug = publicSlug;
     }
 
     public UUID getId() {
@@ -83,6 +93,10 @@ public class Klass implements TenantScoped {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public String getPublicSlug() {
+        return publicSlug;
     }
 
     @Override

@@ -1,5 +1,6 @@
 package com.catechesis.backend.klass;
 
+import com.catechesis.backend.common.slug.SlugGenerator;
 import com.catechesis.backend.common.tenancy.TenantContext;
 import com.catechesis.backend.klass.dto.CreateKlassRequest;
 import java.util.UUID;
@@ -11,17 +12,37 @@ public class KlassService {
 
     private final KlassRepository klassRepository;
     private final TenantContext tenantContext;
+    private final SlugGenerator slugGenerator;
 
-    public KlassService(KlassRepository klassRepository,
-                        TenantContext tenantContext) {
+    public KlassService(
+            KlassRepository klassRepository,
+            TenantContext tenantContext,
+            SlugGenerator slugGenerator
+    )
+    {
         this.klassRepository = klassRepository;
         this.tenantContext = tenantContext;
+        this.slugGenerator = slugGenerator;
     }
 
     @Transactional
     public Klass createKlass(CreateKlassRequest request) {
         UUID churchId = tenantContext.requireChurchId();
-        Klass klass = new Klass(churchId, request.name());
+        String slug = generateUniqueSlug();
+        Klass klass = new Klass(
+                UUID.randomUUID(),
+                churchId,
+                request.name(),
+                slug
+                );
         return klassRepository.save(klass);
+    }
+
+    private String generateUniqueSlug() {
+        String slug;
+        do {
+            slug = slugGenerator.generate();
+        } while (klassRepository.existsByPublicSlug(slug));
+        return slug;
     }
 }

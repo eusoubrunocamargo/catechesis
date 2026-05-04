@@ -11,6 +11,7 @@ import com.catechesis.backend.catechist.CatechistRepository;
 import com.catechesis.backend.catechist.CatechistRole;
 import com.catechesis.backend.church.Church;
 import com.catechesis.backend.church.ChurchRepository;
+import com.catechesis.backend.common.slug.SlugGenerator;
 import com.catechesis.backend.klass.CatechistAssignment;
 import com.catechesis.backend.klass.CatechistAssignmentRepository;
 import com.catechesis.backend.klass.Klass;
@@ -21,6 +22,8 @@ import org.junit.jupiter.api.Disabled;
 import tools.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -138,7 +141,7 @@ class CrossTenantIsolationIntegrationTests {
     // ---------------------------------------------------------------------
 
     @Test
-    @Disabled("S02-04 will add publicSlug to Klass entity; re-enable then")
+    //@Disabled("S02-04 will add publicSlug to Klass entity; re-enable then")
     void twoChurchesCreateClassesIndependently() throws Exception {
         TwoTenantSetup s = seedTwoTenants();
 
@@ -180,7 +183,8 @@ class CrossTenantIsolationIntegrationTests {
     void crossTenantAssignmentIsRejectedAtDbLevel() {
         TwoTenantSetup s = seedTwoTenants();
 
-        Klass classInB = klassRepository.save(new Klass(s.churchB().getId(), "B's class"));
+        Klass classInB = klassRepository.save(
+                new Klass(UUID.randomUUID(), s.churchB().getId(), "B's class", testSlug()));
 
         // Attempt to assign Lead-A (in church A) to classInB (in church B),
         // declaring church A as the assignment's tenant. The composite FKs
@@ -212,5 +216,10 @@ class CrossTenantIsolationIntegrationTests {
         // are introduced (Sprint 4 hardening, ADR-0002 follow-up), update this.
         Catechist found = catechistRepository.findById(s.leadB().getId()).orElseThrow();
         assertThat(found.getChurchId()).isEqualTo(s.churchB().getId());
+    }
+
+    private static final SlugGenerator SLUG_GENERATOR = new SlugGenerator();
+    private static String testSlug() {
+        return SLUG_GENERATOR.generate();
     }
 }
