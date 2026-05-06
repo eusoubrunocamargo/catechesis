@@ -36,5 +36,6 @@ logging:
     com.catechesis: DEBUG
 
 app:
+  public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:5173}
   auth:
     mode: ${APP_AUTH_MODE:dev}
