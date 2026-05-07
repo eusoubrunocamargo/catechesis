@@ -9,6 +9,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * <p>{@link #publicBaseUrl()} is the externally-visible origin at which
  * the parent-facing frontend is reachable. {@link #rateLimit()} groups
  * the limits enforced by {@code RateLimitFilter} on public endpoints.
+ * {@link #consent()} carries the consent metadata stamped on every
+ * submitted registration.
  *
  * <p>Bound as records because these are pure value types with no
  * behavior. Spring Boot supports {@code @ConfigurationProperties} on
@@ -17,7 +19,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "app")
 public record AppProperties(
         String publicBaseUrl,
-        RateLimit rateLimit) {
+        RateLimit rateLimit,
+        Consent consent) {
 
     public record RateLimit(int publicRegistrationPerHour) { }
+
+    public record Consent(String currentVersion) { }
 }
