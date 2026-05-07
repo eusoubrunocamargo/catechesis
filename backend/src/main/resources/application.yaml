@@ -39,5 +39,7 @@ app:
   public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:5173}
   rate-limit:
     public-registration-per-hour: ${APP_RATE_LIMIT_PUBLIC_REGISTRATION_PER_HOUR:10}
+  consent:
+    current-version: ${APP_CONSENT_CURRENT_VERSION:v1.0.0}
   auth:
     mode: ${APP_AUTH_MODE:dev}

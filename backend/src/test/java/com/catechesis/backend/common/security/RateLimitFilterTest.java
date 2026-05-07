@@ -32,7 +32,8 @@ class RateLimitFilterTest {
     void setUp() {
         AppProperties properties = new AppProperties(
                 "http://localhost:5173",
-                new AppProperties.RateLimit(LIMIT_FOR_TEST));
+                new AppProperties.RateLimit(LIMIT_FOR_TEST),
+                new AppProperties.Consent("v1.0.0"));
         filter = new RateLimitFilter(properties);
         chain = mock(FilterChain.class);
     }
