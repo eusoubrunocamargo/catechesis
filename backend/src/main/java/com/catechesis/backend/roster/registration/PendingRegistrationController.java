@@ -3,6 +3,8 @@ package com.catechesis.backend.roster.registration;
 import com.catechesis.backend.roster.child.Child;
 import com.catechesis.backend.roster.child.dto.ChildResponse;
 import com.catechesis.backend.roster.registration.dto.PendingRegistrationSummary;
+import com.catechesis.backend.roster.registration.dto.RejectRegistrationRequest;
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -43,5 +46,15 @@ public class PendingRegistrationController {
     public ResponseEntity<ChildResponse> approve(@PathVariable UUID id) {
         Child child = pendingRegistrationService.approve(id);
         return ResponseEntity.ok(ChildResponse.from(child));
+    }
+
+    @PostMapping("/{id}/reject")
+    @PreAuthorize("hasRole('LEAD')")
+    public ResponseEntity<Void> reject(
+            @PathVariable UUID id,
+            @Valid @RequestBody RejectRegistrationRequest request) {
+
+        pendingRegistrationService.reject(id, request.reason());
+        return ResponseEntity.ok().build();
     }
 }

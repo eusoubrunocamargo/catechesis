@@ -1,8 +1,8 @@
 package com.catechesis.backend.roster.registration;
 
 import com.catechesis.backend.common.AppProperties;
-import com.catechesis.backend.common.tenancy.TenantContext;
 import com.catechesis.backend.common.security.SecurityContext;
+import com.catechesis.backend.common.tenancy.TenantContext;
 import com.catechesis.backend.klass.Klass;
 import com.catechesis.backend.klass.KlassRepository;
 import com.catechesis.backend.roster.child.Child;
@@ -50,6 +50,7 @@ public class PendingRegistrationService {
 
     @Transactional
     public void submit(String slug, PublicRegistrationRequest request) {
+        // unchanged from S02-08
         Klass klass = klassRepository.findByPublicSlugAndActiveTrue(slug)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 
@@ -74,6 +75,7 @@ public class PendingRegistrationService {
 
     @Transactional(readOnly = true)
     public List<PendingRegistrationSummary> listPending() {
+        // unchanged from S02-09
         UUID churchId = tenantContext.requireChurchId();
         return pendingRegistrationRepository.findSummariesByChurchAndStatus(
                 churchId, RegistrationStatus.PENDING);
@@ -81,26 +83,12 @@ public class PendingRegistrationService {
 
     @Transactional
     public Child approve(UUID pendingRegistrationId) {
+        // unchanged from S02-10
         UUID churchId = tenantContext.requireChurchId();
         UUID reviewerId = securityContext.currentCatechistId()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
 
-        PendingRegistration pending = pendingRegistrationRepository
-                .findById(pendingRegistrationId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-
-        // Cross-tenant requests get 404, not 403, to avoid leaking the
-        // existence of pending registrations in other churches.
-        if (!pending.getChurchId().equals(churchId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-        }
-
-        // Service-level state check — the entity's lifecycle method
-        // also enforces this, but pre-checking lets us return a clean
-        // 409 without translating an IllegalStateException.
-        if (pending.getStatus() != RegistrationStatus.PENDING) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT);
-        }
+        PendingRegistration pending = loadForReview(pendingRegistrationId, churchId);
 
         UUID childId = UUID.randomUUID();
 
@@ -121,11 +109,46 @@ public class PendingRegistrationService {
                 null);
         childSafetyInfoRepository.save(safetyInfo);
 
-        // Mutating the managed entity — Hibernate will dirty-flush on
-        // transaction commit. No explicit save() needed.
         pending.approve(reviewerId);
 
         return child;
+    }
+
+    @Transactional
+    public void reject(UUID pendingRegistrationId, String reason) {
+        UUID churchId = tenantContext.requireChurchId();
+        UUID reviewerId = securityContext.currentCatechistId()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+
+        PendingRegistration pending = loadForReview(pendingRegistrationId, churchId);
+
+        // Treat blank-string reason as null at the entity level.
+        // The DTO permits empty strings; the audit trail prefers null
+        // over "" because they mean the same thing semantically.
+        String normalized = (reason == null || reason.isBlank()) ? null : reason;
+
+        pending.reject(reviewerId, normalized);
+    }
+
+    /**
+     * Loads a pending registration for review (approve / reject).
+     * Performs the tenant-isolation check (cross-tenant returns 404,
+     * not 403) and the status pre-check (non-PENDING returns 409).
+     */
+    private PendingRegistration loadForReview(UUID pendingRegistrationId, UUID churchId) {
+        PendingRegistration pending = pendingRegistrationRepository
+                .findById(pendingRegistrationId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+
+        if (!pending.getChurchId().equals(churchId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+
+        if (pending.getStatus() != RegistrationStatus.PENDING) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT);
+        }
+
+        return pending;
     }
 
     private static EmergencyContact toDomainContact(EmergencyContactRequest request) {
