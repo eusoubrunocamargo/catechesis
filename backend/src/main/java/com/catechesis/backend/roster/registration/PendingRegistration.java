@@ -76,7 +76,7 @@ public class PendingRegistration implements TenantScoped {
 
     // ----- Submitted parent contact (Tier-2 PII) -----
 
-    @Column(name = "parent_contact_email", nullable = false, length = 200)
+    @Column(name = "parent_contact_email", length = 200)
     private String parentContactEmail;
 
     // ----- Consent capture (write-once; preserved through redaction) -----
