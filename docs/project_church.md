@@ -7,8 +7,8 @@
 > sprint and kept concise — long-form detail belongs in ADRs and sprint
 > reports, which this document links to.
 
-- **Last updated:** 2026-05-01 (end of Sprint 1)
-- **Active sprint:** Sprint 2 (not started)
+- **Last updated:** 2026-05-15 (end of Sprint 2)
+- **Active sprint:** Sprint 3 (not started)
 
 ---
 
@@ -45,7 +45,7 @@ channel; this system is the logistics backbone for recurring events.
 - **Authentication**: pluggable seam, dev-stub during development,
   Google OAuth in production — ADR-0004
 - **Super-Admin** as a dedicated system-level role — ADR-0005
-- **Stack:** Java 21 + Spring Boot (backend), TypeScript + React
+- **Stack:** Java 21 + Spring Boot 4 (backend), TypeScript + React
   framework TBD (frontend), PostgreSQL (persistence), Flyway (migrations)
 - **Deployment:** single-container app + managed Postgres (target
   decided in Sprint 4)
@@ -56,7 +56,7 @@ channel; this system is the logistics backbone for recurring events.
 |----|-------|--------|
 | [ADR-0001](adr/0001-monorepo-and-modular-monolith.md) | Monorepo and Modular Monolith | Accepted |
 | [ADR-0002](adr/0002-multi-tenancy-model.md) | Multi-Tenancy — shared DB, logical isolation | Accepted |
-| [ADR-0003](adr/0003-security-posture-and-data-sensitivity.md) | Security Posture and Data Sensitivity | Accepted |
+| [ADR-0003](adr/0003-security-posture-and-data-sensitivity.md) | Security Posture and Data Sensitivity | Accepted (extended Sprint 2 — redaction scope) |
 | [ADR-0004](adr/0004-deferred-authentication-strategy.md) | Deferred Authentication via Security Seam | Accepted |
 | [ADR-0005](adr/0005-operational-super-admin-role.md) | Operational Super-Admin Role | Accepted |
 
@@ -66,27 +66,47 @@ _What the system can actually do right now. Updated at sprint end._
 
 What the system can actually do as of the latest commit:
 
-- **Schema:** Church, SuperAdmin, Catechist, Klass, and
-  CatechistAssignment tables, all with UUID PKs and tenant-integrity
-  composite FKs (Flyway V1–V5).
+**Tenancy and access (Sprint 1):**
+
+- **Schema:** Church, SuperAdmin, Catechist, Klass, CatechistAssignment
+  tables with UUID PKs and tenant-integrity composite FKs (Flyway V1–V5)
 - **Authentication (dev mode):** Header-based identity via
-  `X-Dev-Super-Admin-Id` and `X-Dev-Catechist-Id`. The filter
-  populates both our custom `SecurityContext` / `TenantContext`
-  and Spring Security's `SecurityContextHolder`.
-- **Endpoints:**
-  - `POST /admin/churches` — SuperAdmin creates a Church
-  - `POST /admin/churches/{id}/catechists` — SuperAdmin bootstraps
-    the first Lead for a Church
-  - `POST /classes` — Lead creates a class in their own church
-- **Tenant isolation:** Enforced at three layers — composite FKs at
-  the DB, `TenantContext.requireChurchId()` in services, and
-  `@PreAuthorize` role gates at controllers. 6 cross-tenant tests
-  prove the model holds.
-- **Test infrastructure:** 20 integration tests against a dedicated
-  `catechesis_test` database, all transactional with rollback.
-- **Local dev parity:** Both Windows (corporate proxy) and macOS
-  (home, no proxy) environments boot the same skeleton from a fresh
-  clone via `.env.dev` + Maven Wrapper.
+  `X-Dev-Super-Admin-Id` and `X-Dev-Catechist-Id`; populates both
+  custom `SecurityContext` / `TenantContext` and Spring Security's
+  `SecurityContextHolder`
+- **Endpoints:** `POST /admin/churches`, `POST /admin/churches/{id}/catechists`,
+  `POST /classes`
+- **Tenant isolation:** three layers — composite FKs at the DB,
+  `TenantContext.requireChurchId()` in services, and `@PreAuthorize`
+  role gates at controllers
+
+**Roster (Sprint 2):**
+
+- **Schema:** klass.public_slug (V6), pending_registration (V7),
+  child + child_safety_info (V8), parent_contact_email nullability
+  relaxation for redaction (V9)
+- **Slug generation:** opaque 10-char base62 slug generated server-side
+  at `POST /classes`. Stored on klass, surfaced via
+  `GET /classes/{id}/registration-link` as part of an assembled
+  public URL
+- **Public registration:** `POST /public/classes/{slug}/registrations`
+  — anonymous, validated, rate-limited (per-IP, Bucket4j), captures
+  server-controlled consent metadata, returns bare 201
+- **Lead-side review:** `GET /pending-registrations` (summary
+  projection — Tier-3 fields excluded), `POST .../{id}/approve`
+  (atomic Child + ChildSafetyInfo creation), `POST .../{id}/reject`
+- **LGPD redaction:** `RosterRedactionService` clears Tier-3 fields
+  from safety info and (when reachable) the originating pending
+  registration, while preserving the audit skeleton. Service-layer
+  only — no HTTP endpoint or UI in MVP
+
+**Test infrastructure:**
+
+- 70 integration + unit tests against the `catechesis_test` database
+- Sprint 2 quality gate covers 7 public-surface security properties
+  (enumeration resistance, rate limit, cross-tenant isolation,
+  information non-leakage, consent capture, approval atomicity,
+  redaction audit skeleton) across 3 dedicated test files
 
 ## 6. Known limitations
 
@@ -107,6 +127,13 @@ exclusions, not just "not yet."_
 - The `@PreAuthorize` integration depends on Spring Security's
   `SecurityContextHolder`, populated alongside our custom contexts;
   removing the dual write would break role-based authorization.
+- Rate-limit state is in-memory and per-instance. Restarts reset
+  buckets; multi-instance deployments would need coordination.
+  Sprint 4 hardening can move to Redis if needed.
+- No HTTP endpoint for redaction. Service is invocable via test or
+  one-off script; UI deferred until audit logging exists (Sprint 4+).
+- Email validation on parent submissions is permissive (Bean Validation
+  default). Sufficient for MVP; catechist verifies during review.
 
 ## 7. Deferred items
 
@@ -126,14 +153,36 @@ revisited periodically as real usage data arrives._
 - **Announcement board / resource library** — stays in WhatsApp for
   MVP. Revisit in v2 planning.
 - **Attendance history / analytics** — only per-event headcount in MVP.
-- **Standardized error response format.** Sprint 1 used
+- **Standardized error response format.** Sprint 1 and Sprint 2 used
   `ResponseStatusException` ad-hoc. Sprint 4 will introduce
-  `@ControllerAdvice` + a domain-exception hierarchy.
+  `@ControllerAdvice` + a domain-exception hierarchy. Atomicity tests
+  currently assert on propagated exceptions rather than HTTP status
+  for this reason.
 - **Tenant-scoped repository pattern.** Currently every repository's
   `findById` is global; tenant safety lives at the layer above.
   ADR-0002 follow-up planned for Sprint 4.
-- **`GET /admin/churches` for SuperAdmin enumeration.** Open question
-  deferred from S01-09 — likely Sprint 2.
+- **`GET /admin/churches`** for SuperAdmin enumeration. Open question
+  deferred from S01-09 — likely Sprint 3 candidate.
+- **`SecurityContext.requireCatechistId()` / `requireSuperAdminId()`**
+  to mirror `TenantContext.requireChurchId()`. Currently every caller
+  unwraps `Optional<UUID>` via `.orElseThrow()`. Small refactor for
+  Sprint 3 start.
+- **Test fixture builder for `AppProperties`.** As the record grows
+  (3 nested categories today), constructor-arg lists in tests
+  drift. Two test sites today; builder becomes worthwhile at four.
+- **Trusted-proxy boundary for rate-limit IP extraction.**
+  `X-Forwarded-For` is trusted unconditionally today; spoofable
+  without a real proxy. Sprint 4 deployment hardening will define
+  the boundary.
+- **HTTP-exposed redaction endpoint and UI.** Deferred until audit
+  logging exists (Sprint 4+) so every redaction is properly recorded.
+- **Constant-time slug lookup** for enumeration timing-resistance.
+  Currently relies on functional indistinguishability of responses;
+  microsecond-level timing differences in Postgres lookup remain
+  observable in principle. Sprint 4 hardening, if needed.
+- **`pending_registration` review history endpoint.** S02-09 returns
+  PENDING-only; the backlog mentioned a `?status=` parameter as a
+  stretch. Deferred — let real usage tell us whether Leads want it.
 
 ## 8. Development principles
 
@@ -148,6 +197,9 @@ Committed practices, applied to every change:
 - **Test every sensitive boundary**: every Tier-3 endpoint has an
   integration test asserting a wrong-tenant request returns 404, and
   an anonymous request returns 401
+- **Lifecycle methods need integration coverage**, not just unit
+  coverage. Sprint 2 found a schema/entity contradiction (V9) that
+  unit tests of the lifecycle method would not have caught.
 - **Flyway for every schema change**: no ad-hoc SQL; no entity
   annotation creates tables
 - **Migrations are idempotent**: every `V__` migration can run on a
@@ -159,8 +211,6 @@ Committed practices, applied to every change:
   startup check enforces this
 
 ## 9. Repository structure (planned)
-
-```
 catechesis/
 ├── backend/            Spring Boot app
 ├── frontend/           TypeScript + React app
@@ -173,21 +223,25 @@ catechesis/
 │   ├── roadmap.md      First 5 sprints
 │   └── project_church.md   This file
 └── README.md
-```
-
 ## 10. Current sprint status
 
-- **Active sprint:** Sprint 2 (planning)
-- **Sprint 2 goal:** A Lead Catechist can generate a per-class
-  registration link, a parent can submit a registration via that link,
-  and the catechist can approve or reject it, promoting it to an active Child. Introduces the Roster layer (PendingRegistration, Child, ChildSafetyInfo) and the first public, unauthenticated endpoint.
-- **Sprint 2 backlog:** `docs/sprints/sprint-02-backlog.md` — to be
+- **Active sprint:** Sprint 3 (planning)
+- **Sprint 3 goal (preliminary, per roadmap):** A catechist can create
+  and publish an event; a parent can open the event link, bootstrap
+  their device binding, claim a snack slot, and mark absence. This is
+  the heart of the MVP — the original problem the system was conceived
+  to solve.
+- **Sprint 3 backlog:** `docs/sprints/sprint-03-backlog.md` — to be
   drafted at sprint kickoff.
 
 ### Sprint history
 
 _Append one line per completed sprint, newest on top._
 
+- **2026-05-02 → 2026-05-15 — Sprint 2**: Roster layer. 4 migrations
+  (V6–V9), 3 new entities, 6 new endpoints (public + Lead-side),
+  rate limiter, LGPD redaction service. 47 new tests including a
+  7-property public-surface quality gate. All 14 backlog items closed.
 - **2026-04-18 → 2026-05-01 — Sprint 1**: Tenant/access foundation. 5
   schema migrations, 5 entities, security seam, 3 endpoints, 20 tests
   including cross-tenant isolation. All 13 backlog items closed.

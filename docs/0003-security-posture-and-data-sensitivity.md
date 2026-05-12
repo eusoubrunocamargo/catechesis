@@ -113,3 +113,74 @@ a narrow service method that writes an `AuditEvent` on every read.
   verify no Tier-3 data is exposed
 - A proper Data Processing Agreement template for parishes to sign when
   onboarding, deferred to first real deployment
+
+  ---
+
+## Addendum: LGPD Redaction Scope (added Sprint 2, S02-12)
+
+**Date:** 2026-05-15
+
+When implementing the redaction service (`RosterRedactionService`) for
+LGPD right-of-erasure in Sprint 2, the operational question arose:
+*which fields does erasure clear, and which are preserved for audit?*
+
+### Decision
+
+Erasure clears Tier-3 sensitive fields. Identity fields and audit
+metadata are preserved.
+
+**Cleared on redaction:**
+
+- `pending_registration.allergies`
+- `pending_registration.emergency_contacts`
+- `pending_registration.parent_contact_email`
+- `child_safety_info.allergies`
+- `child_safety_info.emergency_contacts`
+- `child_safety_info.notes`
+- A `sensitive_data_redacted_at` timestamp is set on both rows
+
+**Preserved on redaction:**
+
+- All primary identifiers (`id`, `church_id`, `klass_id`)
+- The child's first and last name (on both `child` and the originating
+  `pending_registration`)
+- Registration status (`PENDING`, `APPROVED`, `REJECTED`) and review
+  metadata (`reviewed_by_catechist_id`, `reviewed_at`)
+- Consent metadata (`consent_version`, `consent_granted_at`)
+- All timestamps (`submitted_at`, `created_at`, `updated_at`)
+
+### Rationale
+
+LGPD treats personal data broadly — a literal interpretation would
+suggest erasing the child's name as well. The standard interpretation
+for systems with legitimate retention obligations (which a parish has,
+for child-safety records) is: keep the minimum identifying information
+needed for the audit to function, and erase everything else.
+
+Without the child's name preserved, the audit ledger cannot identify
+*whom* the audit is about. The audit's value collapses. Preserving the
+name, while clearing allergies, contacts, and parental email, gives a
+balance: an auditor can verify "this child was admitted via this consent
+at this time" without retaining the sensitive ancillary content the
+parent originally submitted.
+
+### Scope and reversibility
+
+This decision applies to the redaction service in its current form. If
+a parish or legal review at any point requires stricter erasure — for
+example, complete erasure of the child's name — a separate
+`redactIdentity()` lifecycle operation can be introduced as a distinct
+gesture. The current redaction set is the floor; nothing prevents a
+stricter operation from layering on top.
+
+### What this does NOT cover
+
+- **Server logs.** This addendum addresses persistent storage. Audit
+  logging (Sprint 4) will need its own redaction policy — likely
+  excluding sensitive fields from log output entirely, rather than
+  redacting them later.
+- **Backups.** Database backups will contain pre-redaction state.
+  Sprint 4 deployment hardening should establish a backup-redaction
+  policy (likely: time-bounded retention with rolling deletion).
+- **Frontend caches.** Once a frontend exists, browser-side state
+  needs its own erasure consideration. Out of scope for MVP backend.
