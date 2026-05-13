@@ -59,6 +59,7 @@ channel; this system is the logistics backbone for recurring events.
 | [ADR-0003](adr/0003-security-posture-and-data-sensitivity.md) | Security Posture and Data Sensitivity | Accepted (extended Sprint 2 — redaction scope) |
 | [ADR-0004](adr/0004-deferred-authentication-strategy.md) | Deferred Authentication via Security Seam | Accepted |
 | [ADR-0005](adr/0005-operational-super-admin-role.md) | Operational Super-Admin Role | Accepted |
+| [ADR-0006](adr/0006-parent-authentication-via-pin.md) | Parent Authentication via Per-Child PIN | Accepted |
 
 ## 5. Current capabilities
 
